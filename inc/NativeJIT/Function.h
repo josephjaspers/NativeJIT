@@ -44,108 +44,64 @@ namespace NativeJIT
         Allocators::IAllocator& m_allocator;
     };
 
-
-    template <typename R, typename P1 = void, typename P2 = void, typename P3 = void, typename P4 = void>
-    class Function : public FunctionBase<R>
-    {
-    public:
-        Function(Allocators::IAllocator& allocator, FunctionBuffer& code);
-
-        ParameterNode<P1>& GetP1() const;
-        ParameterNode<P2>& GetP2() const;
-        ParameterNode<P3>& GetP3() const;
-        ParameterNode<P4>& GetP4() const;
-
+    template<class R, class... params>
+    class Function : FunctionBase<R> {
+           Function(Allocators::IAllocator& allocator, FunctionBuffer& code) :
+            FunctionBase<R>(allocator, code);
+         
+        int* m_param = nullptr;  //only because of the 'getP1','getP2'.
+        
+        //delete these when getP1 is refactored 
+        Function& next() { 
+             return *this;
+        }
+        const Function& next() const {
+            return *this; 
+        }
+        
+            
+    }; 
+    template<class R, class P, class... params>
+    class Function<R, P, params...> : Function<R, params...> {
+        
+        using self = Function<R, P, params...>;
+        using next_t = Function<R, params...>;
+        
         typedef R (*FunctionType)(P1, P2, P3, P4);
-
         FunctionType Compile(Node<R>& expression);
-
         FunctionType GetEntryPoint() const;
+      
+        next_t& next() { 
+             return static_cast<next_t&>(*this); 
+        }
+        const next_t& next() const {
+            return static_cast<const next_t&>(*this);
+        }
+        
+        ParameterNode<P>*  m_param; 
 
-    private:
-        ParameterNode<P1>* m_p1;
-        ParameterNode<P2>* m_p2;
-        ParameterNode<P3>* m_p3;
-        ParameterNode<P4>* m_p4;
+        template<int index>
+        auto get() { 
+            constexpr if (index == 0) {
+                return m_param; 
+            } else {
+                return next().get<index - 1>(); 
+            }
+        };
+        
+        //const version 
+        template<int index>
+        auto get() const { 
+            constexpr if (index == 0) {
+                return m_param; 
+            } else {
+                return next().get<index - 1>(); 
+            }
+        };
+        
+
     };
-
-
-    template <typename R, typename P1, typename P2, typename P3>
-    class Function<R, P1, P2, P3> : public FunctionBase<R>
-    {
-    public:
-        Function(Allocators::IAllocator& allocator, FunctionBuffer& code);
-
-        ParameterNode<P1>& GetP1() const;
-        ParameterNode<P2>& GetP2() const;
-        ParameterNode<P3>& GetP3() const;
-
-        typedef R (*FunctionType)(P1, P2, P3);
-
-        FunctionType Compile(Node<R>& expression);
-
-        FunctionType GetEntryPoint() const;
-
-    private:
-        ParameterNode<P1>* m_p1;
-        ParameterNode<P2>* m_p2;
-        ParameterNode<P3>* m_p3;
-    };
-
-
-    template <typename R, typename P1, typename P2>
-    class Function<R, P1, P2> : public FunctionBase<R>
-    {
-    public:
-        Function(Allocators::IAllocator& allocator, FunctionBuffer& code);
-
-        ParameterNode<P1>& GetP1() const;
-        ParameterNode<P2>& GetP2() const;
-
-        typedef R (*FunctionType)(P1, P2);
-
-        FunctionType Compile(Node<R>& expression);
-
-        FunctionType GetEntryPoint() const;
-
-    private:
-        ParameterNode<P1>* m_p1;
-        ParameterNode<P2>* m_p2;
-    };
-
-
-    template <typename R, typename P1>
-    class Function<R, P1> : public FunctionBase<R>
-    {
-    public:
-        Function(Allocators::IAllocator& allocator, FunctionBuffer& code);
-
-        ParameterNode<P1>& GetP1() const;
-
-        typedef R (*FunctionType)(P1);
-
-        FunctionType Compile(Node<R>& expression);
-
-        FunctionType GetEntryPoint() const;
-
-    private:
-        ParameterNode<P1>* m_p1;
-    };
-
-
-    template <typename R>
-    class Function<R> : public FunctionBase<R>
-    {
-    public:
-        Function(Allocators::IAllocator& allocator, FunctionBuffer& code);
-
-        typedef R (*FunctionType)();
-
-        FunctionType Compile(Node<R>& expression);
-
-        FunctionType GetEntryPoint() const;
-    };
-
+    
 
     //*************************************************************************
     //
@@ -260,27 +216,6 @@ namespace NativeJIT
         m_p1 = &this->template Parameter<P1>(slotAllocator);
         m_p2 = &this->template Parameter<P2>(slotAllocator);
         m_p3 = &this->template Parameter<P3>(slotAllocator);
-    }
-
-
-    template <typename R, typename P1, typename P2, typename P3>
-    ParameterNode<P1>& Function<R, P1, P2, P3>::GetP1() const
-    {
-        return *m_p1;
-    }
-
-
-    template <typename R, typename P1, typename P2, typename P3>
-    ParameterNode<P2>& Function<R, P1, P2, P3>::GetP2() const
-    {
-        return *m_p2;
-    }
-
-
-    template <typename R, typename P1, typename P2, typename P3>
-    ParameterNode<P3>& Function<R, P1, P2, P3>::GetP3() const
-    {
-        return *m_p3;
     }
 
 
